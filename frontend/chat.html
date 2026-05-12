@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura | AI Fitness Coach</title>
+    <meta name="description" content="Chat with Aura, your personal AI Fitness Coach. Get personalized workout plans, nutrition advice and fitness guidance powered by Google Gemini.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Error Toast -->
+    <div class="error-toast" id="error-toast"></div>
+
+    <div class="app-container">
+        <!-- Animated background shapes -->
+        <div class="bg-shape shape-1"></div>
+        <div class="bg-shape shape-2"></div>
+        <div class="bg-shape shape-3"></div>
+
+        <!-- Glass Chat Window -->
+        <div class="chat-wrapper glass-panel">
+
+            <!-- Header -->
+            <div class="chat-header">
+                <div class="header-left">
+                    <a href="index.html" class="back-btn" title="Back to Home" id="back-home-btn">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </a>
+                    <div class="header-info">
+                        <div class="bot-avatar">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                        </div>
+                        <div class="header-text">
+                            <h1>Aura</h1>
+                            <div class="status">
+                                <div class="status-dot"></div>
+                                AI Fitness Coach · Online
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="action-btn" title="Clear Chat" id="clear-chat-btn">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                    <button class="action-btn" title="Info" id="info-btn">
+                        <i class="fa-solid fa-circle-info"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="chat-container" id="chat-container">
+                <!-- Welcome Message -->
+                <div class="welcome-message" id="welcome-message">
+                    <span class="welcome-icon">💪</span>
+                    <h2>Hi there! I'm Aura</h2>
+                    <p>Your personal AI Fitness Coach powered by Google Gemini. Whether you're looking to build muscle, lose weight, or just stay healthy, I'm here to help.</p>
+                    <div class="suggestion-chips" id="suggestion-chips">
+                        <button class="chip" data-msg="Create a beginner workout plan for me">🏋️ Beginner Workout Plan</button>
+                        <button class="chip" data-msg="What should I eat to lose weight?">🥗 Weight Loss Diet</button>
+                        <button class="chip" data-msg="How do I build muscle fast?">💪 Build Muscle</button>
+                        <button class="chip" data-msg="Give me a 7-day meal plan">🍽️ 7-Day Meal Plan</button>
+                        <button class="chip" data-msg="What are the best cardio exercises?">🏃 Cardio Tips</button>
+                        <button class="chip" data-msg="How important is sleep for fitness?">😴 Sleep & Recovery</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <form id="chat-form">
+                    <textarea
+                        id="user-input"
+                        placeholder="Ask me anything about fitness, nutrition, or workouts..."
+                        rows="1"
+                        autocomplete="off"
+                        autofocus
+                    ></textarea>
+                    <button type="submit" id="send-btn" title="Send message">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+                <div class="input-hint">Powered by Google Gemini · Press Enter to send, Shift+Enter for new line</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
