@@ -1,4 +1,5 @@
 import os
+import time
 import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -18,10 +19,10 @@ client = genai.Client(api_key=API_KEY)
 
 # Fallback chain: try each model in order until one works
 MODELS = [
-    "models/gemini-2.0-flash",
-    "models/gemini-2.5-flash",
-    "models/gemini-2.0-flash-lite",
     "models/gemini-flash-latest",
+    "models/gemini-2.0-flash",
+    "models/gemini-2.0-flash-lite",
+    "models/gemini-2.5-flash",
 ]
 
 # ── Flask App Setup ───────────────────────────────────────────────
@@ -57,7 +58,7 @@ chat_histories = {}
 # ── Helper: call Gemini with model fallback ───────────────────────
 def call_gemini_with_fallback(history):
     last_error = None
-    for model_id in MODELS:
+    for i, model_id in enumerate(MODELS):
         try:
             response = client.models.generate_content(
                 model=model_id,
@@ -71,10 +72,13 @@ def call_gemini_with_fallback(history):
             return response.text, model_id
         except Exception as e:
             err_str = str(e)
-            # Only fall through on overload/unavailable errors
+            # Only fall through on overload/quota/unavailable errors
             if any(code in err_str for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]):
                 print(f"[WARN] Model {model_id} unavailable: {err_str[:120]}")
                 last_error = e
+                # Small delay before trying next model
+                if i < len(MODELS) - 1:
+                    time.sleep(1)
                 continue
             # For other errors (400, auth, etc.) raise immediately
             raise e
