@@ -12,10 +12,17 @@ load_dotenv()
 # ── Gemini Configuration ──────────────────────────────────────────
 API_KEY = os.getenv("GEMINI_API_KEY")
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY environment variable is missing. Please set it in .env or your hosting environment.")
+    raise ValueError("GEMINI_API_KEY environment variable is missing.")
 
 client = genai.Client(api_key=API_KEY)
-MODEL_ID = "models/gemini-2.5-flash"
+
+# Fallback chain: try each model in order until one works
+MODELS = [
+    "models/gemini-2.0-flash",
+    "models/gemini-2.5-flash",
+    "models/gemini-2.0-flash-lite",
+    "models/gemini-flash-latest",
+]
 
 # ── Flask App Setup ───────────────────────────────────────────────
 app = Flask(__name__)
@@ -45,8 +52,33 @@ Response Guidelines:
 - Never provide medical diagnoses or replace professional medical advice"""
 
 # ── In-memory chat sessions ───────────────────────────────────────
-# Each session stores a list of Content objects
 chat_histories = {}
+
+# ── Helper: call Gemini with model fallback ───────────────────────
+def call_gemini_with_fallback(history):
+    last_error = None
+    for model_id in MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_id,
+                contents=history,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    temperature=0.8,
+                    max_output_tokens=1024,
+                )
+            )
+            return response.text, model_id
+        except Exception as e:
+            err_str = str(e)
+            # Only fall through on overload/unavailable errors
+            if any(code in err_str for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]):
+                print(f"[WARN] Model {model_id} unavailable: {err_str[:120]}")
+                last_error = e
+                continue
+            # For other errors (400, auth, etc.) raise immediately
+            raise e
+    raise last_error
 
 # ── Routes ────────────────────────────────────────────────────────
 
@@ -55,11 +87,8 @@ def home():
     return jsonify({
         "name": "Aura Fitness Bot API",
         "status": "running",
-        "version": "2.0.0",
-        "endpoints": {
-            "health": "/api/health",
-            "chat": "/api/chat [POST]"
-        }
+        "version": "2.1.0",
+        "models": MODELS
     })
 
 @app.route("/api/health", methods=["GET"])
@@ -67,7 +96,7 @@ def health_check():
     return jsonify({
         "status": "ok",
         "message": "Aura Fitness Bot Backend is running",
-        "model": MODEL_ID
+        "models": MODELS
     })
 
 @app.route("/api/chat", methods=["POST", "OPTIONS"])
@@ -79,7 +108,7 @@ def chat():
         data = request.get_json(silent=True)
 
         if not data:
-            return jsonify({"error": "No JSON data received. Send a JSON body with 'message'."}), 400
+            return jsonify({"error": "No JSON data received."}), 400
 
         user_message = data.get("message", "").strip()
         session_id = data.get("session_id", "default")
@@ -96,18 +125,8 @@ def chat():
             parts=[types.Part(text=user_message)]
         ))
 
-        # Call Gemini API with full history and system instruction
-        response = client.models.generate_content(
-            model=MODEL_ID,
-            contents=history,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                temperature=0.8,
-                max_output_tokens=1024,
-            )
-        )
-
-        assistant_text = response.text
+        # Call Gemini with automatic model fallback
+        assistant_text, used_model = call_gemini_with_fallback(history)
 
         # Add assistant response to history
         history.append(types.Content(
@@ -115,18 +134,32 @@ def chat():
             parts=[types.Part(text=assistant_text)]
         ))
 
-        # Save updated history (limit to last 20 turns to avoid memory bloat)
+        # Keep last 40 messages (20 turns) to avoid memory bloat
         chat_histories[session_id] = history[-40:]
 
         return jsonify({
             "response": assistant_text,
-            "session_id": session_id
+            "session_id": session_id,
+            "model": used_model
         })
 
     except Exception as e:
         traceback.print_exc()
+        err_str = str(e)
+
+        # Return a friendly message for quota/overload errors
+        if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str:
+            return jsonify({
+                "error": "I'm getting a lot of requests right now! Please wait a moment and try again. 💪"
+            }), 429
+
+        if "UNAVAILABLE" in err_str or "503" in err_str:
+            return jsonify({
+                "error": "All AI models are temporarily busy. Please try again in a few seconds! 🙏"
+            }), 503
+
         return jsonify({
-            "error": f"An error occurred: {str(e)}"
+            "error": f"An error occurred: {err_str}"
         }), 500
 
 
